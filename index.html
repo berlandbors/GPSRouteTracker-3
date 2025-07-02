@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GPS Трекер маршрута</title>
+
+  <!-- Leaflet CDN -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    crossorigin=""
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    crossorigin=""
+  ></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>🧭 GPS Трекер</h1>
+
+    <div id="map"></div>
+
+    <div class="controls">
+      <button id="startBtn" onclick="toggleTracking()">▶️ Старт</button>
+      <button onclick="saveRoute()">💾 Сохранить</button>
+      <button onclick="exportRoute()">⬇️ Экспорт</button>
+      <label class="import-label">
+        📂 Импорт
+        <input type="file" id="importFile" accept=".json" onchange="importRoute()" />
+      </label>
+      <button onclick="clearRoute()">🧹 Очистить</button>
+    </div>
+
+    <div class="info">
+      <p id="distance">Дистанция: —</p>
+      <p id="pointsCount">Точек: 0</p>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
