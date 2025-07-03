@@ -68,3 +68,17 @@ button:hover,
   z-index: 9999;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
+#timer {
+  margin-top: 0.5rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.start-icon {
+  font-size: 20px;
+  color: green;
+}
+.finish-icon {
+  font-size: 20px;
+  color: red;
+}
