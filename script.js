@@ -2,8 +2,13 @@ let map;
 let route = [];
 let routeLine = null;
 let liveMarker = null;
+let startMarker = null;
+let finishMarker = null;
 let tracking = false;
 let watchId = null;
+
+let startTime = null;
+let timerInterval = null;
 
 window.onload = () => {
   map = L.map('map').setView([31.7683, 35.2137], 9);
@@ -23,7 +28,7 @@ function checkGPSAccess() {
   }
 
   navigator.geolocation.getCurrentPosition(
-    () => console.log("✅ Геолокация разрешена"),
+    () => console.log("✅ Геолокация доступна"),
     err => {
       alert("⚠ Включите GPS: " + err.message);
     },
@@ -36,25 +41,34 @@ function toggleTracking() {
   document.getElementById("startBtn").textContent = tracking ? "⏸ Стоп" : "▶️ Старт";
 
   if (tracking) {
+    startTime = new Date();
+    startTimer();
     startTracking();
   } else {
     stopTracking();
+    stopTimer();
+    markFinish();
   }
 }
 
 function startTracking() {
-  const status = createStatusElement("⏳ Ожидаем сигнал...");
+  const status = createStatusElement("⏳ Ожидание GPS...");
 
   watchId = navigator.geolocation.watchPosition(
     pos => {
-      const coords = {
-        lat: pos.coords.latitude,
-        lon: pos.coords.longitude
-      };
+      const { latitude, longitude, accuracy } = pos.coords;
+      if (accuracy > 25) {
+        status.textContent = `🔄 Точность: ${accuracy.toFixed(1)} м...`;
+        return;
+      }
+
+      status.remove();
+
+      const coords = { lat: latitude, lon: longitude };
 
       if (route.length === 0) {
         map.setView([coords.lat, coords.lon], 16);
-        status.remove();
+        markStart(coords);
       }
 
       if (shouldAddPoint(coords)) {
@@ -63,10 +77,11 @@ function startTracking() {
       }
 
       updateLiveMarker(coords);
+      map.panTo([coords.lat, coords.lon]);
     },
     err => {
       status.remove();
-      alert("Ошибка геолокации: " + err.message);
+      alert("Ошибка GPS: " + err.message);
     },
     {
       enableHighAccuracy: true,
@@ -83,6 +98,24 @@ function stopTracking() {
   }
 }
 
+function startTimer() {
+  updateTimer();
+  timerInterval = setInterval(updateTimer, 1000);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval);
+}
+
+function updateTimer() {
+  const now = new Date();
+  const elapsed = new Date(now - startTime);
+  const hours = String(elapsed.getUTCHours()).padStart(2, '0');
+  const mins = String(elapsed.getUTCMinutes()).padStart(2, '0');
+  const secs = String(elapsed.getUTCSeconds()).padStart(2, '0');
+  document.getElementById("timer").textContent = `Время движения: ${hours}:${mins}:${secs}`;
+}
+
 function updateLiveMarker(coords) {
   const latlng = [coords.lat, coords.lon];
   if (!liveMarker) {
@@ -97,10 +130,29 @@ function updateLiveMarker(coords) {
   }
 }
 
+function markStart(coords) {
+  if (startMarker) map.removeLayer(startMarker);
+  startMarker = L.marker([coords.lat, coords.lon], {
+    title: "Старт",
+    icon: L.divIcon({ className: 'start-icon', html: "🟢", iconSize: [20, 20] })
+  }).addTo(map).bindPopup("🚩 Старт");
+}
+
+function markFinish() {
+  if (route.length === 0) return;
+  const last = route[route.length - 1];
+
+  if (finishMarker) map.removeLayer(finishMarker);
+  finishMarker = L.marker([last.lat, last.lon], {
+    title: "Финиш",
+    icon: L.divIcon({ className: 'finish-icon', html: "🔴", iconSize: [20, 20] })
+  }).addTo(map).bindPopup("🏁 Финиш");
+}
+
 function shouldAddPoint(coords) {
   if (route.length === 0) return true;
   const last = route[route.length - 1];
-  return haversine(last, coords) >= 0.01; // ≥10 м
+  return haversine(last, coords) >= 0.01;
 }
 
 function updateMap() {
@@ -154,6 +206,10 @@ function loadSavedRoute() {
     const parsed = JSON.parse(data);
     route = parsed.points;
     updateMap();
+    if (route.length > 0) {
+      markStart(route[0]);
+      markFinish(route[route.length - 1]);
+    }
   } catch (e) {
     console.warn("Ошибка загрузки маршрута.");
   }
@@ -183,6 +239,10 @@ function importRoute() {
       const data = JSON.parse(e.target.result);
       route = data.points || [];
       updateMap();
+      if (route.length > 0) {
+        markStart(route[0]);
+        markFinish(route[route.length - 1]);
+      }
     } catch (err) {
       alert("Ошибка чтения JSON.");
     }
@@ -192,13 +252,22 @@ function importRoute() {
 
 function clearRoute() {
   stopTracking();
+  stopTimer();
   route = [];
+
   if (routeLine) map.removeLayer(routeLine);
   if (liveMarker) map.removeLayer(liveMarker);
+  if (startMarker) map.removeLayer(startMarker);
+  if (finishMarker) map.removeLayer(finishMarker);
+
   routeLine = null;
   liveMarker = null;
+  startMarker = null;
+  finishMarker = null;
+
   document.getElementById("distance").textContent = "Дистанция: —";
   document.getElementById("pointsCount").textContent = "Точек: 0";
+  document.getElementById("timer").textContent = "Время движения: 00:00:00";
 }
 
 function createStatusElement(text) {
