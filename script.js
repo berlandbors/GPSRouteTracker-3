@@ -337,3 +337,44 @@ function createStatusElement(text) {
   document.body.appendChild(div);
   return div;
 }
+
+async function fetchElevations() {
+  if (segments.length === 0) {
+    alert("Нет маршрута для обработки.");
+    return;
+  }
+
+  // Соберем все координаты из всех сегментов
+  const allPoints = segments.flat();
+  const locations = allPoints.map(p => ({
+    latitude: p.lat,
+    longitude: p.lon
+  }));
+
+  try {
+    const response = await fetch("https://api.open-elevation.com/api/v1/lookup", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ locations })
+    });
+
+    if (!response.ok) throw new Error("Ошибка запроса высот");
+
+    const data = await response.json();
+    const elevations = data.results;
+
+    // Присвоим высоты обратно в маршрут
+    elevations.forEach((e, i) => {
+      if (segments.flat()[i]) {
+        segments.flat()[i].alt = e.elevation;
+      }
+    });
+
+    alert(`Высота обновлена для ${elevations.length} точек.`);
+  } catch (err) {
+    console.error("Ошибка запроса высот:", err);
+    alert("Не удалось получить высоту.");
+  }
+}
