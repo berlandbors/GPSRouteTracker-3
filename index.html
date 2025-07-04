@@ -25,7 +25,6 @@
     <div id="map"></div>
 
     <div class="controls">
-<button onclick="fetchElevations()">🔼 Получить высоты</button>
       <button id="startBtn" onclick="toggleTracking()">▶️ Старт</button>
       <button onclick="saveRoute()">💾 Сохранить</button>
       <button onclick="exportRoute()">⬇️ Экспорт</button>
@@ -40,7 +39,11 @@
       <p id="distance">Дистанция: —</p>
       <p id="pointsCount">Точек: 0</p>
       <p id="timer">Время движения: 00:00:00</p>
-      <div id="motionType">Режим: ❓</div>
+     <div id="motionType">Режим: ❓</div>
+<div id="currentAlt">Высота: —</div>
+<canvas id="elevationChart" width="100%" height="200"></canvas>
+<button onclick="fetchElevations()">🔼 Получить высоты</button>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     </div>
   </div>
 
