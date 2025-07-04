@@ -9,10 +9,6 @@ let watchId = null;
 
 let startTime = null;
 let timerInterval = null;
-let activeTime = 0; // секунд
-let lastMoveTime = null;
-
-let isMoving = false;
 
 window.onload = () => {
   map = L.map('map').setView([31.7683, 35.2137], 9);
@@ -46,8 +42,6 @@ function toggleTracking() {
 
   if (tracking) {
     startTime = new Date();
-    activeTime = 0;
-    lastMoveTime = Date.now();
     startTimer();
     startTracking();
   } else {
@@ -77,15 +71,9 @@ function startTracking() {
         markStart(coords);
       }
 
-      const moved = shouldAddPoint(coords);
-
-      if (moved) {
+      if (shouldAddPoint(coords)) {
         route.push(coords);
         updateMap();
-        isMoving = true;
-        lastMoveTime = Date.now();
-      } else {
-        isMoving = false;
       }
 
       updateLiveMarker(coords);
@@ -111,10 +99,8 @@ function stopTracking() {
 }
 
 function startTimer() {
-  timerInterval = setInterval(() => {
-    if (isMoving) activeTime++;
-    updateTimer();
-  }, 1000);
+  updateTimer();
+  timerInterval = setInterval(updateTimer, 1000);
 }
 
 function stopTimer() {
@@ -122,10 +108,12 @@ function stopTimer() {
 }
 
 function updateTimer() {
-  const hrs = Math.floor(activeTime / 3600).toString().padStart(2, "0");
-  const min = Math.floor((activeTime % 3600) / 60).toString().padStart(2, "0");
-  const sec = (activeTime % 60).toString().padStart(2, "0");
-  document.getElementById("timer").textContent = `Время движения: ${hrs}:${min}:${sec}`;
+  const now = new Date();
+  const elapsed = new Date(now - startTime);
+  const hours = String(elapsed.getUTCHours()).padStart(2, '0');
+  const mins = String(elapsed.getUTCMinutes()).padStart(2, '0');
+  const secs = String(elapsed.getUTCSeconds()).padStart(2, '0');
+  document.getElementById("timer").textContent = `Время движения: ${hours}:${mins}:${secs}`;
 }
 
 function updateLiveMarker(coords) {
@@ -201,11 +189,19 @@ function totalDistance() {
 }
 
 function saveRoute() {
+  const now = new Date();
+  const duration = startTime ? {
+    hours: new Date(now - startTime).getUTCHours(),
+    minutes: new Date(now - startTime).getUTCMinutes(),
+    seconds: new Date(now - startTime).getUTCSeconds(),
+    formatted: `${String(new Date(now - startTime).getUTCHours()).padStart(2, '0')}:${String(new Date(now - startTime).getUTCMinutes()).padStart(2, '0')}:${String(new Date(now - startTime).getUTCSeconds()).padStart(2, '0')}`
+  } : null;
+
   const data = {
-    name: `Маршрут от ${new Date().toLocaleString()}`,
+    name: `Маршрут от ${now.toLocaleString()}`,
     distance: totalDistance(),
-    duration: activeTime,
-    points: route
+    points: route,
+    duration: duration
   };
   localStorage.setItem("lastRoute", JSON.stringify(data));
   alert("Маршрут сохранён!");
@@ -223,6 +219,10 @@ function loadSavedRoute() {
       markStart(route[0]);
       markFinish(route[route.length - 1]);
     }
+
+    if (parsed.duration?.formatted) {
+      document.getElementById("timer").textContent = `Время движения: ${parsed.duration.formatted}`;
+    }
   } catch (e) {
     console.warn("Ошибка загрузки маршрута.");
   }
@@ -230,11 +230,20 @@ function loadSavedRoute() {
 
 function exportRoute() {
   if (route.length === 0) return alert("Маршрут пуст.");
+
+  const now = new Date();
+  const duration = startTime ? {
+    hours: new Date(now - startTime).getUTCHours(),
+    minutes: new Date(now - startTime).getUTCMinutes(),
+    seconds: new Date(now - startTime).getUTCSeconds(),
+    formatted: `${String(new Date(now - startTime).getUTCHours()).padStart(2, '0')}:${String(new Date(now - startTime).getUTCMinutes()).padStart(2, '0')}:${String(new Date(now - startTime).getUTCSeconds()).padStart(2, '0')}`
+  } : null;
+
   const data = {
-    name: `Маршрут от ${new Date().toLocaleString()}`,
+    name: `Маршрут от ${now.toLocaleString()}`,
     distance: totalDistance(),
-    duration: activeTime,
-    points: route
+    points: route,
+    duration: duration
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement("a");
@@ -252,12 +261,14 @@ function importRoute() {
     try {
       const data = JSON.parse(e.target.result);
       route = data.points || [];
-      activeTime = data.duration || 0;
       updateMap();
-      updateTimer();
       if (route.length > 0) {
         markStart(route[0]);
         markFinish(route[route.length - 1]);
+      }
+
+      if (data.duration?.formatted) {
+        document.getElementById("timer").textContent = `Время движения: ${data.duration.formatted}`;
       }
     } catch (err) {
       alert("Ошибка чтения JSON.");
@@ -270,7 +281,6 @@ function clearRoute() {
   stopTracking();
   stopTimer();
   route = [];
-  activeTime = 0;
 
   if (routeLine) map.removeLayer(routeLine);
   if (liveMarker) map.removeLayer(liveMarker);
