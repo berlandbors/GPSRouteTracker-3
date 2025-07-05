@@ -275,10 +275,87 @@ function drawElevationChart() {
   chartInitialized = true;
 }
 
+function saveRoute() {
+  const now = new Date();
+  const duration = startTime ? {
+    formatted: `${String(new Date(now - startTime).getUTCHours()).padStart(2, '0')}:${String(new Date(now - startTime).getUTCMinutes()).padStart(2, '0')}:${String(new Date(now - startTime).getUTCSeconds()).padStart(2, '0')}`
+  } : null;
+
+  const data = {
+    name: `Маршрут от ${now.toLocaleString()}`,
+    distance: totalDistance(),
+    duration,
+    segments
+  };
+
+  localStorage.setItem("lastRoute", JSON.stringify(data));
+  alert("✅ Маршрут сохранён!");
+}
+
+function loadSavedRoute() {
+  const data = localStorage.getItem("lastRoute");
+  if (!data) return;
+
+  try {
+    const parsed = JSON.parse(data);
+    segments = parsed.segments || [];
+    updateMap();
+    if (segments.length > 0 && segments[0].length > 0) {
+      markStart(segments[0][0]);
+      const lastSeg = segments[segments.length - 1];
+      if (lastSeg.length > 0) markFinish(lastSeg[lastSeg.length - 1]);
+    }
+    if (parsed.duration?.formatted) {
+      document.getElementById("timer").textContent = `Время движения: ${parsed.duration.formatted}`;
+    }
+  } catch (e) {
+    console.warn("❌ Ошибка загрузки маршрута:", e);
+  }
+}
+
+function exportRoute() {
+  if (segments.length === 0) return alert("⚠️ Маршрут пуст.");
+
+  const now = new Date();
+  const data = {
+    name: `Маршрут от ${now.toLocaleString()}`,
+    distance: totalDistance(),
+    segments
+  };
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "route.json";
+  a.click();
+}
+
+function importRoute() {
+  const file = document.getElementById("importFile").files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      segments = data.segments || [];
+      updateMap();
+      if (segments.length > 0 && segments[0].length > 0) {
+        markStart(segments[0][0]);
+        const lastSeg = segments[segments.length - 1];
+        if (lastSeg.length > 0) markFinish(lastSeg[lastSeg.length - 1]);
+      }
+    } catch (err) {
+      alert("❌ Ошибка чтения JSON.");
+    }
+  };
+  reader.readAsText(file);
+}
+
 function createStatusElement(text) {
   const div = document.createElement("div");
   div.id = "gps-status";
   div.textContent = text;
   document.body.appendChild(div);
   return div;
-}
+                                           }
